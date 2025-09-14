@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../services/task_service.dart';
+import '../services/tts_service.dart';
 import '../models/daily_task.dart';
 
 class StorytellingScreen extends StatefulWidget {
@@ -14,7 +15,7 @@ class _StorytellingScreenState extends State<StorytellingScreen> {
   DailyTask? _task;
   bool _isLoading = true;
   bool _isRunning = false;
-  int _duration = 5; // minuty
+  double _duration = 5.0; // minuty jako double
   int _remainingSeconds = 0;
   Timer? _timer;
   String _currentPhase = 'ready'; // ready, running, finished
@@ -22,6 +23,7 @@ class _StorytellingScreenState extends State<StorytellingScreen> {
   @override
   void initState() {
     super.initState();
+    TTSService.initialize();
     _loadTask();
   }
 
@@ -54,7 +56,7 @@ class _StorytellingScreenState extends State<StorytellingScreen> {
     
     setState(() {
       _isRunning = true;
-      _remainingSeconds = _duration * 60;
+      _remainingSeconds = (_duration * 60).round();
       _currentPhase = 'running';
     });
 
@@ -77,13 +79,18 @@ class _StorytellingScreenState extends State<StorytellingScreen> {
     });
   }
 
-  void _finishTimer() {
+  Future<void> _finishTimer() async {
     _timer?.cancel();
     setState(() {
       _isRunning = false;
       _currentPhase = 'finished';
     });
-    _markTaskAsCompleted();
+    
+    // Odtwórz alarm
+    await TTSService.playAlarm();
+    
+    // Zaznacz zadanie jako wykonane
+    await _markTaskAsCompleted();
   }
 
   Future<void> _markTaskAsCompleted() async {
@@ -101,7 +108,7 @@ class _StorytellingScreenState extends State<StorytellingScreen> {
     _timer?.cancel();
     setState(() {
       _isRunning = false;
-      _remainingSeconds = _duration * 60;
+      _remainingSeconds = (_duration * 60).round();
       _currentPhase = 'ready';
     });
   }
@@ -123,7 +130,9 @@ class _StorytellingScreenState extends State<StorytellingScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Opowiadanie historii'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        centerTitle: true,
+        backgroundColor: Colors.teal,
+        foregroundColor: Colors.white,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -281,23 +290,23 @@ class _StorytellingScreenState extends State<StorytellingScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
-                    onPressed: _duration > 1 ? () {
+                    onPressed: _duration > 0.5 ? () {
                       setState(() {
-                        _duration -= 1;
-                        _remainingSeconds = _duration * 60;
+                        _duration -= 0.5;
+                        _remainingSeconds = (_duration * 60).round();
                       });
                     } : null,
                     icon: const Icon(Icons.remove),
                   ),
                   Text(
-                    '$_duration min',
+                    '${_duration.toStringAsFixed(1)} min',
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   IconButton(
                     onPressed: _duration < 30 ? () {
                       setState(() {
-                        _duration += 1;
-                        _remainingSeconds = _duration * 60;
+                        _duration += 0.5;
+                        _remainingSeconds = (_duration * 60).round();
                       });
                     } : null,
                     icon: const Icon(Icons.add),
@@ -307,50 +316,6 @@ class _StorytellingScreenState extends State<StorytellingScreen> {
             ],
             
             const Spacer(),
-            
-            // Status zadania
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: _task?.isCompleted == true 
-                  ? Colors.green.withOpacity(0.1)
-                  : Colors.orange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: _task?.isCompleted == true 
-                    ? Colors.green
-                    : Colors.orange,
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    _task?.isCompleted == true 
-                      ? Icons.check_circle
-                      : Icons.schedule,
-                    color: _task?.isCompleted == true 
-                      ? Colors.green
-                      : Colors.orange,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _task?.isCompleted == true 
-                      ? 'Zadanie wykonane!'
-                      : 'Zadanie do wykonania',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: _task?.isCompleted == true 
-                        ? Colors.green
-                        : Colors.orange,
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),

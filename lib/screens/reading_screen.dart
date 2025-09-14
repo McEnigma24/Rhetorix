@@ -59,7 +59,9 @@ class _ReadingScreenState extends State<ReadingScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Czytanie z korkiem'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        centerTitle: true,
+        backgroundColor: Colors.teal,
+        foregroundColor: Colors.white,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -190,50 +192,6 @@ class _ReadingScreenState extends State<ReadingScreen> {
             ),
             
             const Spacer(),
-            
-            // Status zadania
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: _task?.isCompleted == true 
-                  ? Colors.green.withOpacity(0.1)
-                  : Colors.orange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: _task?.isCompleted == true 
-                    ? Colors.green
-                    : Colors.orange,
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    _task?.isCompleted == true 
-                      ? Icons.check_circle
-                      : Icons.schedule,
-                    color: _task?.isCompleted == true 
-                      ? Colors.green
-                      : Colors.orange,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _task?.isCompleted == true 
-                      ? 'Zadanie wykonane!'
-                      : 'Zadanie do wykonania',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: _task?.isCompleted == true 
-                        ? Colors.green
-                        : Colors.orange,
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),

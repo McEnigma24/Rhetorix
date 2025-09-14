@@ -19,6 +19,11 @@ class TTSService {
     await flutterTts.speak(text);
   }
   
+  static Future<void> playAlarm() async {
+    // Prosty alarm - powtarzane "Ding!"
+    await flutterTts.speak("Ding! Ding! Ding! Ćwiczenie zakończone!");
+  }
+  
   static Future<void> stop() async {
     await flutterTts.stop();
   }

@@ -1,72 +1,158 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
+import '../services/task_service.dart';
+import '../models/daily_task.dart';
 import 'associations_screen.dart';
 import 'reading_screen.dart';
 import 'storytelling_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  List<DailyTask> _tasks = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTasks();
+  }
+
+  Future<void> _loadTasks() async {
+    final tasks = await TaskService.getTodayTasks();
+    setState(() {
+      _tasks = tasks;
+      _isLoading = false;
+    });
+  }
+
+  int get _completedTasksCount {
+    return _tasks.where((task) => task.isCompleted).length;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Rhetorix - Ćwiczenia Językowe'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: const Text(
+          'Rhetorix',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.teal,
+        elevation: 0,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Dzisiejsze ćwiczenia:',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: ListView(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildTaskCard(
-                    context,
-                    'Skojarzenia',
-                    'Generuj losowe słowa i mów skojarzenia',
-                    Icons.psychology,
-                    Colors.blue,
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const AssociationsScreen()),
+                  // Status wykonanych zadań
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.teal.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.teal.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Dzisiejszy postęp',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.teal,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '$_completedTasksCount z ${_tasks.length} zadań wykonanych',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                        CircularProgressIndicator(
+                          value: _completedTasksCount / _tasks.length,
+                          backgroundColor: Colors.teal.withOpacity(0.2),
+                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.teal),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  _buildTaskCard(
-                    context,
-                    'Czytanie z korkiem',
-                    'Przeczytaj 2 strony książki z korkiem w ustach',
-                    Icons.menu_book,
-                    Colors.green,
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const ReadingScreen()),
-                    ),
+                  const SizedBox(height: 20),
+                  
+                  const Text(
+                    'Dzisiejsze ćwiczenia:',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
-                  _buildTaskCard(
-                    context,
-                    'Opowiadanie historii',
-                    'Opowiadaj historię przez 5 minut bez przerywników',
-                    Icons.mic,
-                    Colors.orange,
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const StorytellingScreen()),
+                  
+                  Expanded(
+                    child: ListView(
+                      children: [
+                        _buildTaskCard(
+                          context,
+                          'Skojarzenia',
+                          'Generuj losowe słowa i mów skojarzenia',
+                          Icons.psychology,
+                          Colors.blue,
+                          _tasks.isNotEmpty ? _tasks[0].isCompleted : false,
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const AssociationsScreen()),
+                          ).then((_) => _loadTasks()),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildTaskCard(
+                          context,
+                          'Czytanie z korkiem',
+                          'Przeczytaj 2 strony książki z korkiem w ustach',
+                          Icons.menu_book,
+                          Colors.green,
+                          _tasks.length > 1 ? _tasks[1].isCompleted : false,
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const ReadingScreen()),
+                          ).then((_) => _loadTasks()),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildTaskCard(
+                          context,
+                          'Opowiadanie historii',
+                          'Opowiadaj historię przez 5 minut bez przerywników',
+                          Icons.mic,
+                          Colors.orange,
+                          _tasks.length > 2 ? _tasks[2].isCompleted : false,
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const StorytellingScreen()),
+                          ).then((_) => _loadTasks()),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -76,6 +162,7 @@ class HomeScreen extends StatelessWidget {
     String description,
     IconData icon,
     Color color,
+    bool isCompleted,
     VoidCallback onTap,
   ) {
     return Card(
@@ -100,12 +187,26 @@ class HomeScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              decoration: isCompleted ? TextDecoration.lineThrough : null,
+                              color: isCompleted ? Colors.grey : null,
+                            ),
+                          ),
+                        ),
+                        if (isCompleted)
+                          const Icon(
+                            Icons.check_circle,
+                            color: Colors.green,
+                            size: 24,
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
