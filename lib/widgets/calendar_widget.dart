@@ -69,13 +69,13 @@ class _CalendarWidgetState extends State<CalendarWidget> {
     for (String day in weekdays) {
       dayWidgets.add(
         Container(
-          height: 28,
+          height: 20,
           alignment: Alignment.center,
           child: Text(
             day,
             style: const TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 10,
+              fontSize: 9,
               color: Colors.grey,
             ),
           ),
@@ -85,7 +85,7 @@ class _CalendarWidgetState extends State<CalendarWidget> {
 
     // Puste miejsca na początku miesiąca
     for (int i = 1; i < firstWeekday; i++) {
-      dayWidgets.add(const SizedBox(height: 28));
+      dayWidgets.add(const SizedBox(height: 20));
     }
 
     // Dni miesiąca
@@ -101,15 +101,15 @@ class _CalendarWidgetState extends State<CalendarWidget> {
             widget.onDateSelected(selectedDate);
           },
           child: Container(
-            height: 28,
-            width: 28,
+            height: 20,
+            width: 20,
             decoration: BoxDecoration(
               color: isToday 
                 ? Colors.teal.withOpacity(0.2)
                 : null,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(10),
               border: isToday 
-                ? Border.all(color: Colors.teal, width: 2)
+                ? Border.all(color: Colors.teal, width: 1.5)
                 : null,
             ),
             child: Stack(
@@ -118,7 +118,7 @@ class _CalendarWidgetState extends State<CalendarWidget> {
                   child: Text(
                     day.toString(),
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 10,
                       fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
                       color: isToday 
                         ? Colors.teal
@@ -128,7 +128,7 @@ class _CalendarWidgetState extends State<CalendarWidget> {
                 ),
                 // Kropki zadań
                 Positioned(
-                  bottom: 1,
+                  bottom: 0,
                   child: _buildTaskDots(day),
                 ),
               ],
@@ -175,9 +175,9 @@ class _CalendarWidgetState extends State<CalendarWidget> {
             }
             
             return Container(
-              width: 4,
-              height: 4,
-              margin: const EdgeInsets.symmetric(horizontal: 0.5),
+              width: 2.5,
+              height: 2.5,
+              margin: const EdgeInsets.symmetric(horizontal: 0.3),
               decoration: BoxDecoration(
                 color: color,
                 shape: BoxShape.circle,

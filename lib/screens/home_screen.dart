@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../services/task_service.dart';
+import '../services/streak_service.dart';
 import '../models/daily_task.dart';
 import '../widgets/calendar_widget.dart';
 import 'associations_screen.dart';
@@ -17,11 +18,13 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   List<DailyTask> _tasks = [];
   bool _isLoading = true;
+  int _currentStreak = 0;
 
   @override
   void initState() {
     super.initState();
     _loadTasks();
+    _loadStreak();
   }
 
   Future<void> _loadTasks() async {
@@ -29,6 +32,14 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _tasks = tasks;
       _isLoading = false;
+    });
+  }
+
+  Future<void> _loadStreak() async {
+    await StreakService.checkAndResetStreak();
+    final streak = await StreakService.getCurrentStreak();
+    setState(() {
+      _currentStreak = streak;
     });
   }
 
@@ -59,46 +70,83 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Streak counter
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.local_fire_department,
+                          color: Colors.orange,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Streak: $_currentStreak dni',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
                   Expanded(
                     child: ListView(
                       children: [
                         _buildTaskCard(
                           context,
                           'Skojarzenia',
-                          'Generuj losowe słowa i mów skojarzenia',
+                          '',
                           Icons.psychology,
                           Colors.blue,
                           _tasks.isNotEmpty ? _tasks[0].isCompleted : false,
                           () => Navigator.push(
                             context,
                             MaterialPageRoute(builder: (context) => const AssociationsScreen()),
-                          ).then((_) => _loadTasks()),
+                          ).then((_) {
+                            _loadTasks();
+                            _loadStreak();
+                          }),
                         ),
-                        const SizedBox(height: 12),
                         _buildTaskCard(
                           context,
                           'Czytanie z korkiem',
-                          'Przeczytaj 2 strony książki z korkiem w ustach',
+                          '',
                           Icons.menu_book,
                           Colors.green,
                           _tasks.length > 1 ? _tasks[1].isCompleted : false,
                           () => Navigator.push(
                             context,
                             MaterialPageRoute(builder: (context) => const ReadingScreen()),
-                          ).then((_) => _loadTasks()),
+                          ).then((_) {
+                            _loadTasks();
+                            _loadStreak();
+                          }),
                         ),
-                        const SizedBox(height: 12),
                         _buildTaskCard(
                           context,
                           'Opowiadanie historii',
-                          'Opowiadaj historię przez 5 minut bez przerywników',
+                          '',
                           Icons.mic,
                           Colors.orange,
                           _tasks.length > 2 ? _tasks[2].isCompleted : false,
                           () => Navigator.push(
                             context,
                             MaterialPageRoute(builder: (context) => const StorytellingScreen()),
-                          ).then((_) => _loadTasks()),
+                          ).then((_) {
+                            _loadTasks();
+                            _loadStreak();
+                          }),
                         ),
                         
                         const SizedBox(height: 20),
@@ -139,63 +187,47 @@ class _HomeScreenState extends State<HomeScreen> {
     VoidCallback onTap,
   ) {
     return Card(
-      elevation: 4,
+      elevation: 2,
+      margin: const EdgeInsets.symmetric(vertical: 4),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                child: Icon(icon, color: color, size: 32),
+                child: Icon(icon, color: color, size: 20),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              decoration: isCompleted ? TextDecoration.lineThrough : null,
-                              color: isCompleted ? Colors.grey : null,
-                            ),
-                          ),
-                        ),
-                        if (isCompleted)
-                          const Icon(
-                            Icons.check_circle,
-                            color: Colors.green,
-                            size: 24,
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      description,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    decoration: isCompleted ? TextDecoration.lineThrough : null,
+                    color: isCompleted ? Colors.grey : null,
+                  ),
                 ),
               ),
-              Icon(
-                Icons.arrow_forward_ios,
-                color: Colors.grey[400],
-              ),
+              if (isCompleted)
+                const Icon(
+                  Icons.check_circle,
+                  color: Colors.green,
+                  size: 20,
+                )
+              else
+                Icon(
+                  Icons.arrow_forward_ios,
+                  color: Colors.grey[400],
+                  size: 16,
+                ),
             ],
           ),
         ),

@@ -2,6 +2,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/daily_task.dart';
 import 'calendar_service.dart';
+import 'streak_service.dart';
 
 class TaskService {
   static const String _tasksKey = 'daily_tasks';
@@ -63,6 +64,7 @@ class TaskService {
       if (task.isCompleted) {
         await CalendarService.markTaskCompleted(DateTime.now(), task.id);
         await CalendarService.saveCompletedDayInMonth(DateTime.now());
+        await StreakService.updateStreak();
       }
     }
   }
