@@ -75,7 +75,7 @@ class _StorytellingScreenState extends State<StorytellingScreen> {
     _timer?.cancel();
     setState(() {
       _isRunning = false;
-      _currentPhase = 'finished';
+      _currentPhase = 'paused';
     });
   }
 
@@ -110,6 +110,25 @@ class _StorytellingScreenState extends State<StorytellingScreen> {
       _isRunning = false;
       _remainingSeconds = (_duration * 60).round();
       _currentPhase = 'ready';
+    });
+  }
+
+  void _resumeTimer() {
+    if (_isRunning) return;
+    
+    setState(() {
+      _isRunning = true;
+      _currentPhase = 'running';
+    });
+
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        _remainingSeconds--;
+      });
+
+      if (_remainingSeconds <= 0) {
+        _finishTimer();
+      }
     });
   }
 
@@ -251,30 +270,56 @@ class _StorytellingScreenState extends State<StorytellingScreen> {
             const SizedBox(height: 24),
             
             // Kontrolki
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
               children: [
-                if (_currentPhase == 'ready' || _currentPhase == 'finished')
+                if (_currentPhase == 'ready')
                   ElevatedButton.icon(
-                    onPressed: _currentPhase == 'finished' ? _resetTimer : _startTimer,
-                    icon: Icon(_currentPhase == 'finished' ? Icons.refresh : Icons.play_arrow),
-                    label: Text(_currentPhase == 'finished' ? 'Reset' : 'Start'),
+                    onPressed: _startTimer,
+                    icon: const Icon(Icons.play_arrow),
+                    label: const Text('Start'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _currentPhase == 'finished' ? Colors.blue : Colors.green,
+                      backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     ),
                   ),
                 
                 if (_currentPhase == 'running')
                   ElevatedButton.icon(
                     onPressed: _stopTimer,
-                    icon: const Icon(Icons.stop),
-                    label: const Text('Stop'),
+                    icon: const Icon(Icons.pause),
+                    label: const Text('Wstrzymaj'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
+                      backgroundColor: Colors.orange,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    ),
+                  ),
+                
+                if (_currentPhase == 'paused')
+                  ElevatedButton.icon(
+                    onPressed: _resumeTimer,
+                    icon: const Icon(Icons.play_arrow),
+                    label: const Text('Wznów'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    ),
+                  ),
+                
+                if (_currentPhase == 'paused' || _currentPhase == 'finished')
+                  ElevatedButton.icon(
+                    onPressed: _resetTimer,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Reset'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     ),
                   ),
               ],
