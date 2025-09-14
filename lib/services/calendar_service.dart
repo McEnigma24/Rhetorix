@@ -57,6 +57,12 @@ class CalendarService {
     return [];
   }
   
+  // Pobierz zadania dla konkretnego dnia w miesiącu
+  static Future<Map<String, bool>> getDayTasksInMonth(DateTime month, int day) async {
+    final date = DateTime(month.year, month.month, day);
+    return await getDayTasks(date);
+  }
+  
   // Zapisz dzień z wykonanymi zadaniami w danym miesiącu
   static Future<void> saveCompletedDayInMonth(DateTime date) async {
     final month = DateTime(date.year, date.month);

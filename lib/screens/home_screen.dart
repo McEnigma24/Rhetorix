@@ -59,54 +59,6 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Status wykonanych zadań
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.teal.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.teal.withOpacity(0.3)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Dzisiejszy postęp',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.teal,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '$_completedTasksCount z ${_tasks.length} zadań wykonanych',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                        CircularProgressIndicator(
-                          value: _completedTasksCount / _tasks.length,
-                          backgroundColor: Colors.teal.withOpacity(0.2),
-                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.teal),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  
-                  const Text(
-                    'Dzisiejsze ćwiczenia:',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
-                  
                   Expanded(
                     child: ListView(
                       children: [
@@ -148,28 +100,28 @@ class _HomeScreenState extends State<HomeScreen> {
                             MaterialPageRoute(builder: (context) => const StorytellingScreen()),
                           ).then((_) => _loadTasks()),
                         ),
+                        
+                        const SizedBox(height: 20),
+                        
+                        // Kalendarz
+                        const Text(
+                          'Kalendarz postępów:',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        CalendarWidget(
+                          onDateSelected: (date) {
+                            // Można dodać funkcjonalność wyboru daty
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Wybrano datę: ${date.day}.${date.month}.${date.year}'),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                        ),
                       ],
                     ),
-                  ),
-                  
-                  const SizedBox(height: 20),
-                  
-                  // Kalendarz
-                  const Text(
-                    'Kalendarz postępów:',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  CalendarWidget(
-                    onDateSelected: (date) {
-                      // Można dodać funkcjonalność wyboru daty
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Wybrano datę: ${date.day}.${date.month}.${date.year}'),
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
-                    },
                   ),
                 ],
               ),

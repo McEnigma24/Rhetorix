@@ -69,13 +69,13 @@ class _CalendarWidgetState extends State<CalendarWidget> {
     for (String day in weekdays) {
       dayWidgets.add(
         Container(
-          height: 32,
+          height: 28,
           alignment: Alignment.center,
           child: Text(
             day,
             style: const TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 12,
+              fontSize: 10,
               color: Colors.grey,
             ),
           ),
@@ -85,12 +85,11 @@ class _CalendarWidgetState extends State<CalendarWidget> {
 
     // Puste miejsca na początku miesiąca
     for (int i = 1; i < firstWeekday; i++) {
-      dayWidgets.add(const SizedBox(height: 32));
+      dayWidgets.add(const SizedBox(height: 28));
     }
 
     // Dni miesiąca
     for (int day = 1; day <= daysInMonth; day++) {
-      final isCompleted = _completedDays.contains(day);
       final isToday = day == DateTime.now().day && 
                      _currentMonth.month == DateTime.now().month && 
                      _currentMonth.year == DateTime.now().year;
@@ -102,15 +101,13 @@ class _CalendarWidgetState extends State<CalendarWidget> {
             widget.onDateSelected(selectedDate);
           },
           child: Container(
-            height: 32,
-            width: 32,
+            height: 28,
+            width: 28,
             decoration: BoxDecoration(
               color: isToday 
                 ? Colors.teal.withOpacity(0.2)
-                : isCompleted 
-                  ? Colors.green.withOpacity(0.1)
-                  : null,
-              borderRadius: BorderRadius.circular(16),
+                : null,
+              borderRadius: BorderRadius.circular(14),
               border: isToday 
                 ? Border.all(color: Colors.teal, width: 2)
                 : null,
@@ -121,29 +118,19 @@ class _CalendarWidgetState extends State<CalendarWidget> {
                   child: Text(
                     day.toString(),
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 12,
                       fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
                       color: isToday 
                         ? Colors.teal
-                        : isCompleted 
-                          ? Colors.green
-                          : Colors.black,
+                        : Colors.black,
                     ),
                   ),
                 ),
-                if (isCompleted)
-                  Positioned(
-                    bottom: 2,
-                    right: 2,
-                    child: Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: Colors.green,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
+                // Kropki zadań
+                Positioned(
+                  bottom: 1,
+                  child: _buildTaskDots(day),
+                ),
               ],
             ),
           ),
@@ -152,6 +139,54 @@ class _CalendarWidgetState extends State<CalendarWidget> {
     }
 
     return dayWidgets;
+  }
+
+  Widget _buildTaskDots(int day) {
+    return FutureBuilder<Map<String, bool>>(
+      future: CalendarService.getDayTasksInMonth(_currentMonth, day),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const SizedBox.shrink();
+        }
+        
+        final tasks = snapshot.data!;
+        final completedTasks = tasks.entries.where((entry) => entry.value).toList();
+        
+        if (completedTasks.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: completedTasks.map((task) {
+            Color color;
+            switch (task.key) {
+              case 'associations':
+                color = Colors.blue;
+                break;
+              case 'reading':
+                color = Colors.green;
+                break;
+              case 'storytelling':
+                color = Colors.orange;
+                break;
+              default:
+                color = Colors.grey;
+            }
+            
+            return Container(
+              width: 4,
+              height: 4,
+              margin: const EdgeInsets.symmetric(horizontal: 0.5),
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
   }
 
   @override
@@ -204,8 +239,10 @@ class _CalendarWidgetState extends State<CalendarWidget> {
             const SizedBox(height: 16),
             
             // Legenda
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 12,
+              runSpacing: 4,
               children: [
                 _buildLegendItem(
                   'Dzisiaj',
@@ -213,13 +250,18 @@ class _CalendarWidgetState extends State<CalendarWidget> {
                   Icons.circle,
                 ),
                 _buildLegendItem(
-                  'Wykonane',
-                  Colors.green,
-                  Icons.circle,
+                  'Skojarzenia',
+                  Colors.blue,
+                  Icons.fiber_manual_record,
                 ),
                 _buildLegendItem(
-                  'Kropka = zadania',
-                  Colors.grey,
+                  'Czytanie',
+                  Colors.green,
+                  Icons.fiber_manual_record,
+                ),
+                _buildLegendItem(
+                  'Opowiadanie',
+                  Colors.orange,
                   Icons.fiber_manual_record,
                 ),
               ],
