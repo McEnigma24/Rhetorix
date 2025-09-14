@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import '../services/task_service.dart';
 import '../services/tts_service.dart';
+import '../services/settings_service.dart';
 import '../models/daily_task.dart';
 
 class StorytellingScreen extends StatefulWidget {
@@ -25,6 +26,15 @@ class _StorytellingScreenState extends State<StorytellingScreen> {
     super.initState();
     TTSService.initialize();
     _loadTask();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final duration = await SettingsService.getStorytellingSettings();
+    setState(() {
+      _duration = duration;
+      _remainingSeconds = (_duration * 60).round();
+    });
   }
 
   @override
@@ -136,6 +146,10 @@ class _StorytellingScreenState extends State<StorytellingScreen> {
     final minutes = seconds ~/ 60;
     final remainingSeconds = seconds % 60;
     return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _saveSettings() async {
+    await SettingsService.saveStorytellingSettings(duration: _duration);
   }
 
   @override
@@ -340,6 +354,7 @@ class _StorytellingScreenState extends State<StorytellingScreen> {
                         _duration -= 0.5;
                         _remainingSeconds = (_duration * 60).round();
                       });
+                      _saveSettings();
                     } : null,
                     icon: const Icon(Icons.remove),
                   ),
@@ -353,6 +368,7 @@ class _StorytellingScreenState extends State<StorytellingScreen> {
                         _duration += 0.5;
                         _remainingSeconds = (_duration * 60).round();
                       });
+                      _saveSettings();
                     } : null,
                     icon: const Icon(Icons.add),
                   ),

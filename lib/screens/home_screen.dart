@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import '../services/task_service.dart';
 import '../models/daily_task.dart';
+import '../widgets/calendar_widget.dart';
 import 'associations_screen.dart';
 import 'reading_screen.dart';
 import 'storytelling_screen.dart';
@@ -149,6 +150,26 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ],
                     ),
+                  ),
+                  
+                  const SizedBox(height: 20),
+                  
+                  // Kalendarz
+                  const Text(
+                    'Kalendarz postępów:',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  CalendarWidget(
+                    onDateSelected: (date) {
+                      // Można dodać funkcjonalność wyboru daty
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Wybrano datę: ${date.day}.${date.month}.${date.year}'),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),

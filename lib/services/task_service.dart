@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/daily_task.dart';
+import 'calendar_service.dart';
 
 class TaskService {
   static const String _tasksKey = 'daily_tasks';
@@ -57,6 +58,12 @@ class TaskService {
     if (index != -1) {
       tasks[index] = task;
       await saveTasks(tasks);
+      
+      // Zapisz do kalendarza jeśli zadanie zostało ukończone
+      if (task.isCompleted) {
+        await CalendarService.markTaskCompleted(DateTime.now(), task.id);
+        await CalendarService.saveCompletedDayInMonth(DateTime.now());
+      }
     }
   }
 }

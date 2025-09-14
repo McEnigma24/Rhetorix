@@ -3,6 +3,7 @@ import 'dart:async';
 import '../services/word_service.dart';
 import '../services/tts_service.dart';
 import '../services/task_service.dart';
+import '../services/settings_service.dart';
 
 class AssociationsScreen extends StatefulWidget {
   const AssociationsScreen({super.key});
@@ -33,7 +34,16 @@ class _AssociationsScreenState extends State<AssociationsScreen> {
   void initState() {
     super.initState();
     TTSService.initialize();
-    _updateWordIntervalMs();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final settings = await SettingsService.getAssociationsSettings();
+    setState(() {
+      _totalDuration = settings['duration']!;
+      _wordInterval = settings['interval']!;
+      _updateWordIntervalMs();
+    });
   }
 
   @override
@@ -45,6 +55,13 @@ class _AssociationsScreenState extends State<AssociationsScreen> {
 
   void _updateWordIntervalMs() {
     _wordIntervalMs = (_wordInterval * 1000).round();
+  }
+
+  Future<void> _saveSettings() async {
+    await SettingsService.saveAssociationsSettings(
+      duration: _totalDuration,
+      interval: _wordInterval,
+    );
   }
 
   Future<void> _generateWord() async {
@@ -304,6 +321,7 @@ class _AssociationsScreenState extends State<AssociationsScreen> {
                       setState(() {
                         _totalDuration -= 0.5;
                       });
+                      _saveSettings();
                     } : null,
                     icon: const Icon(Icons.remove),
                   ),
@@ -316,6 +334,7 @@ class _AssociationsScreenState extends State<AssociationsScreen> {
                       setState(() {
                         _totalDuration += 0.5;
                       });
+                      _saveSettings();
                     } : null,
                     icon: const Icon(Icons.add),
                   ),
@@ -335,6 +354,7 @@ class _AssociationsScreenState extends State<AssociationsScreen> {
                         _wordInterval -= 0.1;
                         _updateWordIntervalMs();
                       });
+                      _saveSettings();
                     } : null,
                     icon: const Icon(Icons.remove),
                   ),
@@ -348,6 +368,7 @@ class _AssociationsScreenState extends State<AssociationsScreen> {
                         _wordInterval += 0.1;
                         _updateWordIntervalMs();
                       });
+                      _saveSettings();
                     } : null,
                     icon: const Icon(Icons.add),
                   ),
