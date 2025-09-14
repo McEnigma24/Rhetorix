@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import '../models/calendar_event.dart';
 import '../services/calendar_service.dart';
 
 class CalendarWidget extends StatefulWidget {
-  final Function(DateTime) onDateSelected;
-  
+  final DateTime currentMonth;
+  final Function(DateTime)? onDateSelected;
+
   const CalendarWidget({
     super.key,
-    required this.onDateSelected,
+    required this.currentMonth,
+    this.onDateSelected,
   });
 
   @override
@@ -14,275 +17,234 @@ class CalendarWidget extends StatefulWidget {
 }
 
 class _CalendarWidgetState extends State<CalendarWidget> {
-  DateTime _currentMonth = DateTime.now();
-  List<int> _completedDays = [];
-  bool _isLoading = true;
+  late DateTime _currentMonth;
+  List<CalendarEvent> _events = [];
+  Map<String, int> _eventCounts = {};
 
   @override
   void initState() {
     super.initState();
-    _loadCompletedDays();
+    _currentMonth = widget.currentMonth;
+    _loadEvents();
   }
 
-  Future<void> _loadCompletedDays() async {
-    final completedDays = await CalendarService.getCompletedDaysInMonth(_currentMonth);
+  @override
+  void didUpdateWidget(CalendarWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.currentMonth != widget.currentMonth) {
+      _currentMonth = widget.currentMonth;
+      _loadEvents();
+    }
+  }
+
+  Future<void> _loadEvents() async {
+    final events = await CalendarService.getEventsForMonth(_currentMonth);
+    final counts = await CalendarService.getEventCountsForMonth(_currentMonth);
+    
     setState(() {
-      _completedDays = completedDays;
-      _isLoading = false;
+      _events = events;
+      _eventCounts = counts;
     });
   }
 
-  void _previousMonth() {
-    setState(() {
-      _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1);
-      _isLoading = true;
-    });
-    _loadCompletedDays();
+  List<CalendarEvent> _getEventsForDate(DateTime date) {
+    return _events.where((event) => 
+      event.date.year == date.year &&
+      event.date.month == date.month &&
+      event.date.day == date.day
+    ).toList();
   }
 
-  void _nextMonth() {
-    setState(() {
-      _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1);
-      _isLoading = true;
-    });
-    _loadCompletedDays();
-  }
-
-  String _getMonthName(int month) {
-    const months = [
-      'Styczeń', 'Luty', 'Marzec', 'Kwiecień', 'Maj', 'Czerwiec',
-      'Lipiec', 'Sierpień', 'Wrzesień', 'Październik', 'Listopad', 'Grudzień'
-    ];
-    return months[month - 1];
-  }
-
-  List<Widget> _buildCalendarDays() {
-    final firstDayOfMonth = DateTime(_currentMonth.year, _currentMonth.month, 1);
-    final lastDayOfMonth = DateTime(_currentMonth.year, _currentMonth.month + 1, 0);
-    final firstWeekday = firstDayOfMonth.weekday;
-    final daysInMonth = lastDayOfMonth.day;
-
-    List<Widget> dayWidgets = [];
-
-    // Nagłówki dni tygodnia
-    const weekdays = ['P', 'W', 'Ś', 'C', 'P', 'S', 'N'];
-    for (String day in weekdays) {
-      dayWidgets.add(
-        Container(
-          height: 20,
-          alignment: Alignment.center,
-          child: Text(
-            day,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 9,
-              color: Colors.grey,
-            ),
-          ),
-        ),
-      );
+  List<DateTime> _getDaysInMonth() {
+    final firstDay = DateTime(_currentMonth.year, _currentMonth.month, 1);
+    final lastDay = DateTime(_currentMonth.year, _currentMonth.month + 1, 0);
+    final firstWeekday = firstDay.weekday;
+    
+    final days = <DateTime>[];
+    
+    // Dodaj puste dni z poprzedniego miesiąca
+    for (int i = firstWeekday - 1; i > 0; i--) {
+      days.add(firstDay.subtract(Duration(days: i)));
     }
-
-    // Puste miejsca na początku miesiąca
-    for (int i = 1; i < firstWeekday; i++) {
-      dayWidgets.add(const SizedBox(height: 20));
+    
+    // Dodaj dni z obecnego miesiąca
+    for (int day = 1; day <= lastDay.day; day++) {
+      days.add(DateTime(_currentMonth.year, _currentMonth.month, day));
     }
-
-    // Dni miesiąca
-    for (int day = 1; day <= daysInMonth; day++) {
-      final isToday = day == DateTime.now().day && 
-                     _currentMonth.month == DateTime.now().month && 
-                     _currentMonth.year == DateTime.now().year;
-      
-      dayWidgets.add(
-        GestureDetector(
-          onTap: () {
-            final selectedDate = DateTime(_currentMonth.year, _currentMonth.month, day);
-            widget.onDateSelected(selectedDate);
-          },
-          child: Container(
-            height: 20,
-            width: 20,
-            decoration: BoxDecoration(
-              color: isToday 
-                ? Colors.teal.withOpacity(0.2)
-                : null,
-              borderRadius: BorderRadius.circular(10),
-              border: isToday 
-                ? Border.all(color: Colors.teal, width: 1.5)
-                : null,
-            ),
-            child: Stack(
-              children: [
-                Center(
-                  child: Text(
-                    day.toString(),
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
-                      color: isToday 
-                        ? Colors.teal
-                        : Colors.black,
-                    ),
-                  ),
-                ),
-                // Kropki zadań
-                Positioned(
-                  bottom: 0,
-                  child: _buildTaskDots(day),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    return dayWidgets;
-  }
-
-  Widget _buildTaskDots(int day) {
-    return FutureBuilder<Map<String, bool>>(
-      future: CalendarService.getDayTasksInMonth(_currentMonth, day),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const SizedBox.shrink();
-        }
-        
-        final tasks = snapshot.data!;
-        final completedTasks = tasks.entries.where((entry) => entry.value).toList();
-        
-        if (completedTasks.isEmpty) {
-          return const SizedBox.shrink();
-        }
-        
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: completedTasks.map((task) {
-            Color color;
-            switch (task.key) {
-              case 'associations':
-                color = Colors.blue;
-                break;
-              case 'reading':
-                color = Colors.green;
-                break;
-              case 'storytelling':
-                color = Colors.orange;
-                break;
-              default:
-                color = Colors.grey;
-            }
-            
-            return Container(
-              width: 2.5,
-              height: 2.5,
-              margin: const EdgeInsets.symmetric(horizontal: 0.3),
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-              ),
-            );
-          }).toList(),
-        );
-      },
-    );
+    
+    return days;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            // Nagłówek z miesiącem i strzałkami
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  onPressed: _previousMonth,
-                  icon: const Icon(Icons.chevron_left),
-                ),
-                Text(
-                  '${_getMonthName(_currentMonth.month)} ${_currentMonth.year}',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+    final days = _getDaysInMonth();
+    final monthNames = [
+      'Styczeń', 'Luty', 'Marzec', 'Kwiecień', 'Maj', 'Czerwiec',
+      'Lipiec', 'Sierpień', 'Wrzesień', 'Październik', 'Listopad', 'Grudzień'
+    ];
+
+    return Column(
+      children: [
+        // Nagłówek z nazwą miesiąca i rokiem
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16.0),
+          child: Text(
+            '${monthNames[_currentMonth.month - 1]} ${_currentMonth.year}',
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey,
+            ),
+          ),
+        ),
+        
+        // Legenda z kategoriami i liczbami
+        if (_eventCounts.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16.0),
+            child: Wrap(
+              spacing: 16,
+              runSpacing: 8,
+              children: _eventCounts.entries.map((entry) {
+                final color = CalendarService.eventCategories[entry.key] ?? Colors.grey;
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${entry.key}: ${entry.value}',
+                      style: TextStyle(
+                        color: color,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+        
+        // Kalendarz
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            children: [
+              // Nagłówki dni tygodnia
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(8),
+                    topRight: Radius.circular(8),
                   ),
                 ),
-                IconButton(
-                  onPressed: _nextMonth,
-                  icon: const Icon(Icons.chevron_right),
+                child: Row(
+                  children: ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Ndz']
+                      .map((day) => Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Text(
+                                day,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ))
+                      .toList(),
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            
-            // Kalendarz
-            if (_isLoading)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(20.0),
-                  child: CircularProgressIndicator(),
-                ),
-              )
-            else
-              GridView.count(
-                crossAxisCount: 7,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                children: _buildCalendarDays(),
               ),
-            
-            const SizedBox(height: 16),
-            
-            // Legenda
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 12,
-              runSpacing: 4,
-              children: [
-                _buildLegendItem(
-                  'Dzisiaj',
-                  Colors.teal,
-                  Icons.circle,
-                ),
-                _buildLegendItem(
-                  'Skojarzenia',
-                  Colors.blue,
-                  Icons.fiber_manual_record,
-                ),
-                _buildLegendItem(
-                  'Czytanie',
-                  Colors.green,
-                  Icons.fiber_manual_record,
-                ),
-                _buildLegendItem(
-                  'Opowiadanie',
-                  Colors.orange,
-                  Icons.fiber_manual_record,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLegendItem(String label, Color color, IconData icon) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: color, size: 16),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
+              
+              // Siatka dni
+              ...List.generate((days.length / 7).ceil(), (weekIndex) {
+                final weekDays = days.skip(weekIndex * 7).take(7).toList();
+                return Row(
+                  children: weekDays.map((day) {
+                    final isCurrentMonth = day.month == _currentMonth.month;
+                    final dayEvents = isCurrentMonth ? _getEventsForDate(day) : [];
+                    
+                    return Expanded(
+                      child: GestureDetector(
+                        onTap: isCurrentMonth ? () {
+                          widget.onDateSelected?.call(day);
+                        } : null,
+                        child: Container(
+                          height: 60,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey[200]!),
+                          ),
+                          child: Column(
+                            children: [
+                              // Numer dnia
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  '${day.day}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isCurrentMonth ? Colors.black : Colors.grey[400],
+                                    fontWeight: isCurrentMonth ? FontWeight.w500 : FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                              
+                              // Kuleczki z wydarzeniami
+                              if (dayEvents.isNotEmpty)
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: dayEvents.take(3).map((event) {
+                                        return Container(
+                                          width: 8,
+                                          height: 8,
+                                          margin: const EdgeInsets.symmetric(horizontal: 1),
+                                          decoration: BoxDecoration(
+                                            color: event.color,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ),
+                                ),
+                              
+                              // Więcej wydarzeń (jeśli więcej niż 3)
+                              if (dayEvents.length > 3)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 2),
+                                  child: Text(
+                                    '+${dayEvents.length - 3}',
+                                    style: const TextStyle(
+                                      fontSize: 8,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                );
+              }),
+            ],
           ),
         ),
       ],

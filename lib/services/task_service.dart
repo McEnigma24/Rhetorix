@@ -1,7 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/daily_task.dart';
-import 'calendar_service.dart';
 import 'streak_service.dart';
 
 class TaskService {
@@ -60,10 +59,8 @@ class TaskService {
       tasks[index] = task;
       await saveTasks(tasks);
       
-      // Zapisz do kalendarza jeśli zadanie zostało ukończone
+      // Aktualizuj streak jeśli zadanie zostało ukończone
       if (task.isCompleted) {
-        await CalendarService.markTaskCompleted(DateTime.now(), task.id);
-        await CalendarService.saveCompletedDayInMonth(DateTime.now());
         await StreakService.updateStreak();
       }
     }

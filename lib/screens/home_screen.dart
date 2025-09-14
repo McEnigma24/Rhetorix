@@ -3,10 +3,10 @@ import 'dart:async';
 import '../services/task_service.dart';
 import '../services/streak_service.dart';
 import '../models/daily_task.dart';
-import '../widgets/calendar_widget.dart';
 import 'associations_screen.dart';
 import 'reading_screen.dart';
 import 'storytelling_screen.dart';
+import 'calendar_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -62,6 +62,18 @@ class _HomeScreenState extends State<HomeScreen> {
         centerTitle: true,
         backgroundColor: Colors.teal,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_month, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const CalendarScreen()),
+              );
+            },
+            tooltip: 'Kalendarz',
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -147,26 +159,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             _loadTasks();
                             _loadStreak();
                           }),
-                        ),
-                        
-                        const SizedBox(height: 20),
-                        
-                        // Kalendarz
-                        const Text(
-                          'Kalendarz postępów:',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 8),
-                        CalendarWidget(
-                          onDateSelected: (date) {
-                            // Można dodać funkcjonalność wyboru daty
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Wybrano datę: ${date.day}.${date.month}.${date.year}'),
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                          },
                         ),
                       ],
                     ),

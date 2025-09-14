@@ -1,104 +1,129 @@
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import '../models/calendar_event.dart';
 
 class CalendarService {
-  static const String _calendarDataKey = 'calendar_data';
+  static const String _eventsKey = 'calendar_events';
   
-  // Pobierz dane zadań dla konkretnego dnia
-  static Future<Map<String, bool>> getDayTasks(DateTime date) async {
-    final prefs = await SharedPreferences.getInstance();
-    final dateKey = _getDateKey(date);
-    final data = prefs.getString('${_calendarDataKey}_$dateKey');
-    
-    if (data != null) {
-      final Map<String, dynamic> jsonData = json.decode(data);
-      return Map<String, bool>.from(jsonData);
-    }
-    
-    return {
-      'associations': false,
-      'reading': false,
-      'storytelling': false,
-    };
-  }
-  
-  // Zapisz dane zadań dla konkretnego dnia
-  static Future<void> saveDayTasks(DateTime date, Map<String, bool> tasks) async {
-    final prefs = await SharedPreferences.getInstance();
-    final dateKey = _getDateKey(date);
-    final data = json.encode(tasks);
-    await prefs.setString('${_calendarDataKey}_$dateKey', data);
-  }
-  
-  // Oznacz zadanie jako wykonane w konkretnym dniu
-  static Future<void> markTaskCompleted(DateTime date, String taskId) async {
-    final tasks = await getDayTasks(date);
-    tasks[taskId] = true;
-    await saveDayTasks(date, tasks);
-  }
-  
-  // Sprawdź czy w danym dniu były wykonane jakieś zadania
-  static Future<bool> hasCompletedTasks(DateTime date) async {
-    final tasks = await getDayTasks(date);
-    return tasks.values.any((completed) => completed);
-  }
-  
-  // Pobierz wszystkie dni z wykonanymi zadaniami w danym miesiącu
-  static Future<List<int>> getCompletedDaysInMonth(DateTime month) async {
+  // Kategorie wydarzeń z kolorami
+  static const Map<String, Color> eventCategories = {
+    'Skojarzenia': Colors.blue,
+    'Czytanie z korkiem': Colors.green,
+    'Opowiadanie historii': Colors.orange,
+    'Migreny': Colors.red,
+    'Praca nad biznesem': Colors.purple,
+  };
+
+  static Future<List<CalendarEvent>> getEventsForMonth(DateTime month) async {
     final prefs = await SharedPreferences.getInstance();
     final monthKey = '${month.year}-${month.month}';
-    final data = prefs.getString('${_calendarDataKey}_month_$monthKey');
     
-    if (data != null) {
-      final List<dynamic> jsonData = json.decode(data);
-      return jsonData.cast<int>();
+    final eventsJson = prefs.getString('${_eventsKey}_$monthKey');
+    if (eventsJson != null) {
+      final List<dynamic> eventsList = json.decode(eventsJson);
+      return eventsList.map((json) => CalendarEvent.fromJson(json)).toList();
     }
     
     return [];
   }
-  
-  // Pobierz zadania dla konkretnego dnia w miesiącu
-  static Future<Map<String, bool>> getDayTasksInMonth(DateTime month, int day) async {
-    final date = DateTime(month.year, month.month, day);
-    return await getDayTasks(date);
-  }
-  
-  // Zapisz dzień z wykonanymi zadaniami w danym miesiącu
-  static Future<void> saveCompletedDayInMonth(DateTime date) async {
-    final month = DateTime(date.year, date.month);
+
+  static Future<void> saveEventsForMonth(DateTime month, List<CalendarEvent> events) async {
+    final prefs = await SharedPreferences.getInstance();
     final monthKey = '${month.year}-${month.month}';
-    final completedDays = await getCompletedDaysInMonth(month);
     
-    if (!completedDays.contains(date.day)) {
-      completedDays.add(date.day);
-      completedDays.sort();
-      
-      final prefs = await SharedPreferences.getInstance();
-      final data = json.encode(completedDays);
-      await prefs.setString('${_calendarDataKey}_month_$monthKey', data);
-    }
+    final eventsJson = json.encode(events.map((event) => event.toJson()).toList());
+    await prefs.setString('${_eventsKey}_$monthKey', eventsJson);
   }
-  
-  // Pobierz statystyki dla miesiąca
-  static Future<Map<String, int>> getMonthStats(DateTime month) async {
-    final completedDays = await getCompletedDaysInMonth(month);
-    int totalCompletedDays = completedDays.length;
+
+  static Future<void> addEvent(CalendarEvent event) async {
+    final month = DateTime(event.date.year, event.date.month);
+    final events = await getEventsForMonth(month);
+    events.add(event);
+    await saveEventsForMonth(month, events);
+  }
+
+  static Future<void> removeEvent(String eventId, DateTime date) async {
+    final month = DateTime(date.year, date.month);
+    final events = await getEventsForMonth(month);
+    events.removeWhere((event) => event.id == eventId);
+    await saveEventsForMonth(month, events);
+  }
+
+  static Future<List<CalendarEvent>> getEventsForDate(DateTime date) async {
+    final month = DateTime(date.year, date.month);
+    final events = await getEventsForMonth(month);
+    return events.where((event) => 
+      event.date.year == date.year &&
+      event.date.month == date.month &&
+      event.date.day == date.day
+    ).toList();
+  }
+
+  static Future<Map<String, int>> getEventCountsForMonth(DateTime month) async {
+    final events = await getEventsForMonth(month);
+    final counts = <String, int>{};
     
-    // Policz ile zadań zostało wykonanych w tym miesiącu
-    int totalTasks = 0;
-    for (int day in completedDays) {
-      final date = DateTime(month.year, month.month, day);
-      final dayTasks = await getDayTasks(date);
-      totalTasks += dayTasks.values.where((completed) => completed).length;
+    for (final event in events) {
+      counts[event.category] = (counts[event.category] ?? 0) + 1;
     }
     
-    return {
-      'completedDays': totalCompletedDays,
-      'totalTasks': totalTasks,
-    };
+    return counts;
   }
-  
-  static String _getDateKey(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+  // Generowanie przykładowych danych dla testów
+  static Future<void> generateSampleData() async {
+    final now = DateTime.now();
+    final currentMonth = DateTime(now.year, now.month);
+    
+    // Sprawdź czy już są dane
+    final existingEvents = await getEventsForMonth(currentMonth);
+    if (existingEvents.isNotEmpty) return;
+    
+    final sampleEvents = <CalendarEvent>[];
+    
+    // Generuj wydarzenia dla obecnego miesiąca
+    for (int day = 1; day <= 31; day++) {
+      try {
+        final date = DateTime(currentMonth.year, currentMonth.month, day);
+        if (date.month != currentMonth.month) break;
+        
+        // Losowo dodaj wydarzenia
+        if (day % 3 == 0) {
+          sampleEvents.add(CalendarEvent(
+            id: 'sample_${day}_1',
+            title: 'Skojarzenia',
+            color: eventCategories['Skojarzenia']!,
+            date: date,
+            category: 'Skojarzenia',
+          ));
+        }
+        
+        if (day % 4 == 0) {
+          sampleEvents.add(CalendarEvent(
+            id: 'sample_${day}_2',
+            title: 'Czytanie z korkiem',
+            color: eventCategories['Czytanie z korkiem']!,
+            date: date,
+            category: 'Czytanie z korkiem',
+          ));
+        }
+        
+        if (day % 5 == 0) {
+          sampleEvents.add(CalendarEvent(
+            id: 'sample_${day}_3',
+            title: 'Opowiadanie historii',
+            color: eventCategories['Opowiadanie historii']!,
+            date: date,
+            category: 'Opowiadanie historii',
+          ));
+        }
+      } catch (e) {
+        // Ignoruj nieprawidłowe daty (np. 31 lutego)
+        continue;
+      }
+    }
+    
+    await saveEventsForMonth(currentMonth, sampleEvents);
   }
 }
