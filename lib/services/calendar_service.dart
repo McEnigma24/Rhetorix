@@ -6,13 +6,11 @@ import '../models/calendar_event.dart';
 class CalendarService {
   static const String _eventsKey = 'calendar_events';
   
-  // Kategorie wydarzeń z kolorami
+  // Kategorie wydarzeń z kolorami - tylko 3 główne zadania
   static const Map<String, Color> eventCategories = {
     'Skojarzenia': Colors.blue,
     'Czytanie z korkiem': Colors.green,
     'Opowiadanie historii': Colors.orange,
-    'Migreny': Colors.red,
-    'Praca nad biznesem': Colors.purple,
   };
 
   static Future<List<CalendarEvent>> getEventsForMonth(DateTime month) async {
@@ -26,6 +24,18 @@ class CalendarService {
     }
     
     return [];
+  }
+
+  // Wyczyść wszystkie wydarzenia z kalendarza
+  static Future<void> clearAllEvents() async {
+    final prefs = await SharedPreferences.getInstance();
+    final keys = prefs.getKeys();
+    
+    for (final key in keys) {
+      if (key.startsWith(_eventsKey)) {
+        await prefs.remove(key);
+      }
+    }
   }
 
   static Future<void> saveEventsForMonth(DateTime month, List<CalendarEvent> events) async {
@@ -71,59 +81,4 @@ class CalendarService {
     return counts;
   }
 
-  // Generowanie przykładowych danych dla testów
-  static Future<void> generateSampleData() async {
-    final now = DateTime.now();
-    final currentMonth = DateTime(now.year, now.month);
-    
-    // Sprawdź czy już są dane
-    final existingEvents = await getEventsForMonth(currentMonth);
-    if (existingEvents.isNotEmpty) return;
-    
-    final sampleEvents = <CalendarEvent>[];
-    
-    // Generuj wydarzenia dla obecnego miesiąca
-    for (int day = 1; day <= 31; day++) {
-      try {
-        final date = DateTime(currentMonth.year, currentMonth.month, day);
-        if (date.month != currentMonth.month) break;
-        
-        // Losowo dodaj wydarzenia
-        if (day % 3 == 0) {
-          sampleEvents.add(CalendarEvent(
-            id: 'sample_${day}_1',
-            title: 'Skojarzenia',
-            color: eventCategories['Skojarzenia']!,
-            date: date,
-            category: 'Skojarzenia',
-          ));
-        }
-        
-        if (day % 4 == 0) {
-          sampleEvents.add(CalendarEvent(
-            id: 'sample_${day}_2',
-            title: 'Czytanie z korkiem',
-            color: eventCategories['Czytanie z korkiem']!,
-            date: date,
-            category: 'Czytanie z korkiem',
-          ));
-        }
-        
-        if (day % 5 == 0) {
-          sampleEvents.add(CalendarEvent(
-            id: 'sample_${day}_3',
-            title: 'Opowiadanie historii',
-            color: eventCategories['Opowiadanie historii']!,
-            date: date,
-            category: 'Opowiadanie historii',
-          ));
-        }
-      } catch (e) {
-        // Ignoruj nieprawidłowe daty (np. 31 lutego)
-        continue;
-      }
-    }
-    
-    await saveEventsForMonth(currentMonth, sampleEvents);
-  }
 }

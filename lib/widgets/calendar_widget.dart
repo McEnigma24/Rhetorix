@@ -5,11 +5,13 @@ import '../services/calendar_service.dart';
 class CalendarWidget extends StatefulWidget {
   final DateTime currentMonth;
   final Function(DateTime)? onDateSelected;
+  final Function(DateTime)? onMonthChanged;
 
   const CalendarWidget({
     super.key,
     required this.currentMonth,
     this.onDateSelected,
+    this.onMonthChanged,
   });
 
   @override
@@ -35,6 +37,13 @@ class _CalendarWidgetState extends State<CalendarWidget> {
       _currentMonth = widget.currentMonth;
       _loadEvents();
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Odśwież kalendarz przy każdej zmianie zależności
+    _loadEvents();
   }
 
   Future<void> _loadEvents() async {
@@ -85,16 +94,43 @@ class _CalendarWidgetState extends State<CalendarWidget> {
 
     return Column(
       children: [
-        // Nagłówek z nazwą miesiąca i rokiem
+        // Nagłówek z nazwą miesiąca i rokiem + nawigacja
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 16.0),
-          child: Text(
-            '${monthNames[_currentMonth.month - 1]} ${_currentMonth.year}',
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey,
-            ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios, color: Colors.teal),
+                onPressed: () {
+                  final newMonth = DateTime(_currentMonth.year, _currentMonth.month - 1);
+                  setState(() {
+                    _currentMonth = newMonth;
+                  });
+                  widget.onMonthChanged?.call(newMonth);
+                  _loadEvents();
+                },
+              ),
+              Text(
+                '${monthNames[_currentMonth.month - 1]} ${_currentMonth.year}',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.arrow_forward_ios, color: Colors.teal),
+                onPressed: () {
+                  final newMonth = DateTime(_currentMonth.year, _currentMonth.month + 1);
+                  setState(() {
+                    _currentMonth = newMonth;
+                  });
+                  widget.onMonthChanged?.call(newMonth);
+                  _loadEvents();
+                },
+              ),
+            ],
           ),
         ),
         
@@ -178,11 +214,7 @@ class _CalendarWidgetState extends State<CalendarWidget> {
                     final dayEvents = isCurrentMonth ? _getEventsForDate(day) : [];
                     
                     return Expanded(
-                      child: GestureDetector(
-                        onTap: isCurrentMonth ? () {
-                          widget.onDateSelected?.call(day);
-                        } : null,
-                        child: Container(
+                      child: Container(
                           height: 60,
                           decoration: BoxDecoration(
                             border: Border.all(color: Colors.grey[200]!),
@@ -239,12 +271,31 @@ class _CalendarWidgetState extends State<CalendarWidget> {
                             ],
                           ),
                         ),
-                      ),
-                    );
+                      );
                   }).toList(),
                 );
               }),
             ],
+          ),
+        ),
+        
+        // Dni tygodnia pod kalendarzem
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: Row(
+            children: ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Ndz']
+                .map((day) => Expanded(
+                      child: Text(
+                        day,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w500,
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ))
+                .toList(),
           ),
         ),
       ],
