@@ -64,16 +64,16 @@ class _CalendarWidgetState extends State<CalendarWidget> {
     ).toList();
   }
 
-  List<DateTime> _getDaysInMonth() {
+  List<DateTime?> _getDaysInMonth() {
     final firstDay = DateTime(_currentMonth.year, _currentMonth.month, 1);
     final lastDay = DateTime(_currentMonth.year, _currentMonth.month + 1, 0);
     final firstWeekday = firstDay.weekday;
     
-    final days = <DateTime>[];
+    final days = <DateTime?>[];
     
-    // Dodaj puste dni z poprzedniego miesiąca
+    // Dodaj puste dni z poprzedniego miesiąca (null oznacza pustą komórkę)
     for (int i = firstWeekday - 1; i > 0; i--) {
-      days.add(firstDay.subtract(Duration(days: i)));
+      days.add(null);
     }
     
     // Dodaj dni z obecnego miesiąca
@@ -210,68 +210,81 @@ class _CalendarWidgetState extends State<CalendarWidget> {
                 final weekDays = days.skip(weekIndex * 7).take(7).toList();
                 return Row(
                   children: weekDays.map((day) {
+                    if (day == null) {
+                      // Pusta komórka
+                      return Expanded(
+                        child: Container(
+                          height: 60,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey[200]!),
+                            color: Colors.grey[50],
+                          ),
+                        ),
+                      );
+                    }
+                    
                     final isCurrentMonth = day.month == _currentMonth.month;
                     final dayEvents = isCurrentMonth ? _getEventsForDate(day) : [];
                     
                     return Expanded(
                       child: Container(
-                          height: 60,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey[200]!),
-                          ),
-                          child: Column(
-                            children: [
-                              // Numer dnia
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Text(
-                                  '${day.day}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: isCurrentMonth ? Colors.black : Colors.grey[400],
-                                    fontWeight: isCurrentMonth ? FontWeight.w500 : FontWeight.normal,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[200]!),
+                        ),
+                        child: Column(
+                          children: [
+                            // Numer dnia
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                '${day.day}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isCurrentMonth ? Colors.black : Colors.grey[400],
+                                  fontWeight: isCurrentMonth ? FontWeight.w500 : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                            
+                            // Kuleczki z wydarzeniami
+                            if (dayEvents.isNotEmpty)
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: dayEvents.take(3).map((event) {
+                                      return Container(
+                                        width: 8,
+                                        height: 8,
+                                        margin: const EdgeInsets.symmetric(horizontal: 1),
+                                        decoration: BoxDecoration(
+                                          color: event.color,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      );
+                                    }).toList(),
                                   ),
                                 ),
                               ),
-                              
-                              // Kuleczki z wydarzeniami
-                              if (dayEvents.isNotEmpty)
-                                Expanded(
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: dayEvents.take(3).map((event) {
-                                        return Container(
-                                          width: 8,
-                                          height: 8,
-                                          margin: const EdgeInsets.symmetric(horizontal: 1),
-                                          decoration: BoxDecoration(
-                                            color: event.color,
-                                            shape: BoxShape.circle,
-                                          ),
-                                        );
-                                      }).toList(),
-                                    ),
+                            
+                            // Więcej wydarzeń (jeśli więcej niż 3)
+                            if (dayEvents.length > 3)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 2),
+                                child: Text(
+                                  '+${dayEvents.length - 3}',
+                                  style: const TextStyle(
+                                    fontSize: 8,
+                                    color: Colors.grey,
                                   ),
                                 ),
-                              
-                              // Więcej wydarzeń (jeśli więcej niż 3)
-                              if (dayEvents.length > 3)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 2),
-                                  child: Text(
-                                    '+${dayEvents.length - 3}',
-                                    style: const TextStyle(
-                                      fontSize: 8,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
+                              ),
+                          ],
                         ),
-                      );
+                      ),
+                    );
                   }).toList(),
                 );
               }),
@@ -279,25 +292,6 @@ class _CalendarWidgetState extends State<CalendarWidget> {
           ),
         ),
         
-        // Dni tygodnia pod kalendarzem
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 8.0),
-          child: Row(
-            children: ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Ndz']
-                .map((day) => Expanded(
-                      child: Text(
-                        day,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ))
-                .toList(),
-          ),
-        ),
       ],
     );
   }

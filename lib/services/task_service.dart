@@ -11,13 +11,19 @@ class TaskService {
     final today = DateTime.now();
     final todayKey = '${today.year}-${today.month}-${today.day}';
     
+    print('📋 getTodayTasks() - szukam zadań dla $todayKey');
     final tasksJson = prefs.getString('${_tasksKey}_$todayKey');
     if (tasksJson != null) {
+      print('📋 Znaleziono zapisane zadania: $tasksJson');
       final List<dynamic> tasksList = json.decode(tasksJson);
-      return tasksList.map((json) => DailyTask.fromJson(json)).toList();
+      final tasks = tasksList.map((json) => DailyTask.fromJson(json)).toList();
+      for (var task in tasks) {
+        print('  - ${task.title}: ${task.isCompleted ? "✅" : "❌"}');
+      }
+      return tasks;
     }
     
-    // Tworzenie domyślnych zadań na dzisiaj
+    // Tworzenie domyślnych zadań na dzisiaj TYLKO jeśli nie ma zapisanych zadań
     final defaultTasks = [
       DailyTask(
         id: 'associations',
@@ -39,6 +45,7 @@ class TaskService {
       ),
     ];
     
+    // Zapisz domyślne zadania tylko raz
     await saveTasks(defaultTasks);
     return defaultTasks;
   }
@@ -48,14 +55,22 @@ class TaskService {
     final today = DateTime.now();
     final todayKey = '${today.year}-${today.month}-${today.day}';
     
+    print('💾 saveTasks() - zapisuję zadania dla $todayKey');
+    for (var task in tasks) {
+      print('  - ${task.title}: ${task.isCompleted ? "✅" : "❌"}');
+    }
+    
     final tasksJson = json.encode(tasks.map((task) => task.toJson()).toList());
     await prefs.setString('${_tasksKey}_$todayKey', tasksJson);
+    print('💾 Zadania zapisane: $tasksJson');
   }
   
   static Future<void> updateTask(DailyTask task) async {
+    print('🔄 updateTask() - aktualizuję zadanie: ${task.title} (${task.isCompleted ? "✅" : "❌"})');
     final tasks = await getTodayTasks();
     final index = tasks.indexWhere((t) => t.id == task.id);
     if (index != -1) {
+      print('🔄 Znaleziono zadanie na pozycji $index, aktualizuję...');
       tasks[index] = task;
       await saveTasks(tasks);
       
@@ -63,6 +78,8 @@ class TaskService {
       if (task.isCompleted) {
         await StreakService.updateStreak();
       }
+    } else {
+      print('❌ Nie znaleziono zadania: ${task.id}');
     }
   }
 }

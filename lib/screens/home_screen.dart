@@ -36,19 +36,31 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _refreshCalendar() async {
+    print('🔄 _refreshCalendar() - START');
+    
     // Załaduj zadania i zsynchronizuj z kalendarzem
     final tasks = await TaskService.getTodayTasks();
+    print('📋 Załadowane zadania: ${tasks.length}');
+    for (var task in tasks) {
+      print('  - ${task.title}: ${task.isCompleted ? "✅" : "❌"}');
+    }
+    
     await _syncTasksWithCalendar();
+    print('🔄 Synchronizacja z kalendarzem zakończona');
     
     // Załaduj streak
     await StreakService.checkAndResetStreak();
     final streak = await StreakService.getCurrentStreak();
+    print('🔥 Streak: $streak');
     
-    // Odśwież interfejs
+    // Odśwież interfejs - wymuś odświeżenie kalendarza
     setState(() {
       _tasks = tasks;
       _currentStreak = streak;
+      // Wymuś odświeżenie kalendarza przez zmianę klucza
+      _currentMonth = DateTime(_currentMonth.year, _currentMonth.month);
     });
+    print('🔄 _refreshCalendar() - END - setState() wywołane');
   }
 
   Future<void> _loadTasks() async {
@@ -72,16 +84,22 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _syncTasksWithCalendar() async {
     final today = DateTime.now();
     final todayTasks = await TaskService.getTodayTasks();
+    print('🔄 _syncTasksWithCalendar() - START dla ${today.day}.${today.month}.${today.year}');
     
     // Usuń wszystkie wydarzenia z dzisiaj
     await _clearTodayEvents(today);
+    print('🗑️ Wyczyszczono wydarzenia z dzisiaj');
     
     // Dodaj ukończone zadania do kalendarza
+    int addedEvents = 0;
     for (final task in todayTasks) {
       if (task.isCompleted) {
         await _addTaskToCalendar(task, today);
+        addedEvents++;
+        print('➕ Dodano wydarzenie: ${task.title}');
       }
     }
+    print('🔄 _syncTasksWithCalendar() - END - dodano $addedEvents wydarzeń');
   }
 
   Future<void> _clearTodayEvents(DateTime date) async {
@@ -184,7 +202,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: CalendarWidget(
-                      key: ValueKey(_currentMonth),
+                      key: ValueKey('${_currentMonth.year}-${_currentMonth.month}-${_tasks.map((t) => t.isCompleted).join()}'),
                       currentMonth: _currentMonth,
                       onMonthChanged: (newMonth) {
                         setState(() {
@@ -207,36 +225,48 @@ class _HomeScreenState extends State<HomeScreen> {
                         Icons.psychology,
                         Colors.blue,
                         _tasks.isNotEmpty ? _tasks[0].isCompleted : false,
-                        () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const AssociationsScreen()),
-                        ).then((_) {
-                          _refreshCalendar();
-                        }),
+                        () {
+                          print('🔵 Kliknięto Skojarzenia');
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const AssociationsScreen()),
+                          ).then((_) {
+                            print('🔵 Powrót z Skojarzeń - wywołuję _refreshCalendar()');
+                            _refreshCalendar();
+                          });
+                        },
                       ),
                       _buildTaskButton(
                         'Czytanie',
                         Icons.menu_book,
                         Colors.green,
                         _tasks.length > 1 ? _tasks[1].isCompleted : false,
-                        () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const ReadingScreen()),
-                        ).then((_) {
-                          _refreshCalendar();
-                        }),
+                        () {
+                          print('🟢 Kliknięto Czytanie');
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const ReadingScreen()),
+                          ).then((_) {
+                            print('🟢 Powrót z Czytania - wywołuję _refreshCalendar()');
+                            _refreshCalendar();
+                          });
+                        },
                       ),
                       _buildTaskButton(
                         'Historie',
                         Icons.mic,
                         Colors.orange,
                         _tasks.length > 2 ? _tasks[2].isCompleted : false,
-                        () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const StorytellingScreen()),
-                        ).then((_) {
-                          _refreshCalendar();
-                        }),
+                        () {
+                          print('🟠 Kliknięto Historie');
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const StorytellingScreen()),
+                          ).then((_) {
+                            print('🟠 Powrót z Historii - wywołuję _refreshCalendar()');
+                            _refreshCalendar();
+                          });
+                        },
                       ),
                     ],
                   ),
