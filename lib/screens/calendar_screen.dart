@@ -65,10 +65,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
             // Nawigacja między miesiącami
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -106,6 +107,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

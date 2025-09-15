@@ -2,7 +2,7 @@
 pushd "%~dp0"
 
 echo ========================================
-echo Building HTTP Request Generator APK...
+echo Building Rhetorix APK...
 echo ========================================
 
 REM Sprawdź czy podano typ build (debug/release)

@@ -36,22 +36,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _refreshCalendar() async {
-    print('🔄 _refreshCalendar() - START');
-    
     // Załaduj zadania i zsynchronizuj z kalendarzem
     final tasks = await TaskService.getTodayTasks();
-    print('📋 Załadowane zadania: ${tasks.length}');
-    for (var task in tasks) {
-      print('  - ${task.title}: ${task.isCompleted ? "✅" : "❌"}');
-    }
     
     await _syncTasksWithCalendar();
-    print('🔄 Synchronizacja z kalendarzem zakończona');
     
     // Załaduj streak
     await StreakService.checkAndResetStreak();
     final streak = await StreakService.getCurrentStreak();
-    print('🔥 Streak: $streak');
     
     // Odśwież interfejs - wymuś odświeżenie kalendarza
     setState(() {
@@ -60,7 +52,6 @@ class _HomeScreenState extends State<HomeScreen> {
       // Wymuś odświeżenie kalendarza przez zmianę klucza
       _currentMonth = DateTime(_currentMonth.year, _currentMonth.month);
     });
-    print('🔄 _refreshCalendar() - END - setState() wywołane');
   }
 
   Future<void> _loadTasks() async {
@@ -84,22 +75,16 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _syncTasksWithCalendar() async {
     final today = DateTime.now();
     final todayTasks = await TaskService.getTodayTasks();
-    print('🔄 _syncTasksWithCalendar() - START dla ${today.day}.${today.month}.${today.year}');
     
     // Usuń wszystkie wydarzenia z dzisiaj
     await _clearTodayEvents(today);
-    print('🗑️ Wyczyszczono wydarzenia z dzisiaj');
     
     // Dodaj ukończone zadania do kalendarza
-    int addedEvents = 0;
     for (final task in todayTasks) {
       if (task.isCompleted) {
         await _addTaskToCalendar(task, today);
-        addedEvents++;
-        print('➕ Dodano wydarzenie: ${task.title}');
       }
     }
-    print('🔄 _syncTasksWithCalendar() - END - dodano $addedEvents wydarzeń');
   }
 
   Future<void> _clearTodayEvents(DateTime date) async {
@@ -163,10 +148,11 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: Colors.teal,
         elevation: 0,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
+      body: SafeArea(
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
                 // Streak counter
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -226,12 +212,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         Colors.blue,
                         _tasks.isNotEmpty ? _tasks[0].isCompleted : false,
                         () {
-                          print('🔵 Kliknięto Skojarzenia');
                           Navigator.push(
                             context,
                             MaterialPageRoute(builder: (context) => const AssociationsScreen()),
                           ).then((_) {
-                            print('🔵 Powrót z Skojarzeń - wywołuję _refreshCalendar()');
                             _refreshCalendar();
                           });
                         },
@@ -242,12 +226,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         Colors.green,
                         _tasks.length > 1 ? _tasks[1].isCompleted : false,
                         () {
-                          print('🟢 Kliknięto Czytanie');
                           Navigator.push(
                             context,
                             MaterialPageRoute(builder: (context) => const ReadingScreen()),
                           ).then((_) {
-                            print('🟢 Powrót z Czytania - wywołuję _refreshCalendar()');
                             _refreshCalendar();
                           });
                         },
@@ -258,12 +240,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         Colors.orange,
                         _tasks.length > 2 ? _tasks[2].isCompleted : false,
                         () {
-                          print('🟠 Kliknięto Historie');
                           Navigator.push(
                             context,
                             MaterialPageRoute(builder: (context) => const StorytellingScreen()),
                           ).then((_) {
-                            print('🟠 Powrót z Historii - wywołuję _refreshCalendar()');
                             _refreshCalendar();
                           });
                         },
@@ -273,6 +253,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
+        ),
       );
   }
 

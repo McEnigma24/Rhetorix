@@ -150,7 +150,7 @@ class _AssociationsScreenState extends State<AssociationsScreen> {
       final updatedTask = associationsTask.copyWith(isCompleted: true);
       await TaskService.updateTask(updatedTask);
     } catch (e) {
-      print('Nie znaleziono zadania skojarzeń: $e');
+      // Nie znaleziono zadania skojarzeń
     }
 
     // Pokaż dialog
@@ -188,10 +188,11 @@ class _AssociationsScreenState extends State<AssociationsScreen> {
         backgroundColor: Colors.teal,
         foregroundColor: Colors.white,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
             // Główne słowo - mniejszy kontener
             Container(
               width: double.infinity,
@@ -384,6 +385,7 @@ class _AssociationsScreenState extends State<AssociationsScreen> {
               ),
             ],
           ],
+        ),
         ),
       ),
     );

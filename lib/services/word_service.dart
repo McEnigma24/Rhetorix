@@ -15,7 +15,6 @@ class WordService {
           .toList();
       return _words!;
     } catch (e) {
-      print('Error loading words: $e');
       return ['Błąd ładowania słów'];
     }
   }

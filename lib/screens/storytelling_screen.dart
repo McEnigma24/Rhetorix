@@ -156,7 +156,9 @@ class _StorytellingScreenState extends State<StorytellingScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: SafeArea(
+          child: Center(child: CircularProgressIndicator()),
+        ),
       );
     }
 
@@ -167,10 +169,11 @@ class _StorytellingScreenState extends State<StorytellingScreen> {
         backgroundColor: Colors.teal,
         foregroundColor: Colors.white,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
             // Instrukcje
             Card(
               elevation: 4,
@@ -378,6 +381,7 @@ class _StorytellingScreenState extends State<StorytellingScreen> {
             
             const Spacer(),
           ],
+        ),
         ),
       ),
     );
