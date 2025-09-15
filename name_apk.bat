@@ -4,10 +4,10 @@ pushd "%~dp0"
 REM Ustaw nazwy plików
 if "%BUILD_TYPE%"=="debug" (
     set OLD_NAME=app-debug.apk
-    set NEW_NAME=HTTP_Request_Generator_DEBUG.apk
+    set NEW_NAME=Rhetorix_DEBUG.apk
 ) else (
     set OLD_NAME=app-release.apk
-    set NEW_NAME=HTTP_Request_Generator_RELEASE.apk
+    set NEW_NAME=Rhetorix_RELEASE.apk
 )
 
 REM Zmień nazwę pliku
