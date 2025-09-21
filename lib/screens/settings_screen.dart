@@ -62,7 +62,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               primary: Colors.teal,
             ),
           ),
-          child: child!,
+          child: MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              alwaysUse24HourFormat: NotificationService.is24HourFormat(),
+            ),
+            child: child!,
+          ),
         );
       },
     );
@@ -192,6 +197,60 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _debugNotifications() async {
+    try {
+      await NotificationService.debugShowScheduledNotifications();
+      
+      final isScheduled = await NotificationService.isNotificationScheduled();
+      final permissionStatus = await NotificationService.checkAllPermissions();
+      
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Debug - Status powiadomień'),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Powiadomienie zaplanowane: ${isScheduled ? "TAK" : "NIE"}'),
+                  const SizedBox(height: 8),
+                  Text('Format 24h: ${NotificationService.is24HourFormat() ? "TAK" : "NIE"}'),
+                  const SizedBox(height: 8),
+                  Text('Uprawnienia systemowe: ${permissionStatus['system_permissions'] ?? false ? "TAK" : "NIE"}'),
+                  const SizedBox(height: 8),
+                  Text('Dokładne alarmy: ${permissionStatus['exact_alarm_permissions'] ?? false ? "TAK" : "NIE"}'),
+                  const SizedBox(height: 8),
+                  Text('Optymalizacja baterii: ${permissionStatus['battery_optimization_permissions'] ?? false ? "TAK" : "NIE"}'),
+                  const SizedBox(height: 8),
+                  Text('Można planować: ${permissionStatus['can_schedule_notifications'] ?? false ? "TAK" : "NIE"}'),
+                  const SizedBox(height: 12),
+                  const Text('Sprawdź logi w konsoli dla szczegółów.'),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Zamknij'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Błąd podczas debugowania: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -282,6 +341,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
             
+            const SizedBox(height: 12),
+            
+            // Przycisk debugowania
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _debugNotifications,
+                icon: const Icon(Icons.bug_report),
+                label: const Text('Debug powiadomień'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purple,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+            
             const SizedBox(height: 24),
             
             // Informacje o aplikacji
@@ -342,7 +417,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
+              NotificationService.formatTime(time),
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,

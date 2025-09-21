@@ -1,9 +1,13 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
@@ -137,23 +141,39 @@ class NotificationService {
     if (!_initialized) await initialize();
 
     try {
+      print('DEBUG: [scheduleDailyReminder] Rozpoczynam planowanie powiadomienia na $hour:$minute');
+      
       // Sprawdź uprawnienia przed planowaniem notyfikacji
       final status = await getDetailedPermissionStatus();
       final canSchedule = status['system_permissions'] ?? false;
       
+      print('DEBUG: [scheduleDailyReminder] Status uprawnień: $status');
+      
       if (!canSchedule) {
+        print('DEBUG: [scheduleDailyReminder] BŁĄD: Brak uprawnień systemowych');
         throw Exception('Brak uprawnień do planowania notyfikacji');
       }
 
       // Anuluj poprzednie notyfikacje
       await cancelDailyReminder();
+      print('DEBUG: [scheduleDailyReminder] Anulowano poprzednie powiadomienia');
 
       // Oblicz czas do następnej notyfikacji
       final scheduledTime = _nextInstanceOfTime(hour, minute);
       
-      print('DEBUG: Planuję notyfikację Rhetorix na: $scheduledTime');
+      print('DEBUG: [scheduleDailyReminder] Planuję notyfikację Rhetorix na: $scheduledTime');
+      print('DEBUG: [scheduleDailyReminder] Aktualny czas: ${tz.TZDateTime.now(tz.local)}');
+      print('DEBUG: [scheduleDailyReminder] Różnica: ${scheduledTime.difference(tz.TZDateTime.now(tz.local))}');
 
-      // Użyj zonedSchedule dla działania w tle
+      // Sprawdź uprawnienia do dokładnych alarmów
+      final canScheduleExact = await canScheduleExactAlarms();
+      print('DEBUG: [scheduleDailyReminder] Can schedule exact alarms: $canScheduleExact');
+      
+      if (!canScheduleExact) {
+        print('DEBUG: [scheduleDailyReminder] OSTRZEŻENIE: Brak uprawnień do dokładnych alarmów');
+      }
+
+      // Użyj zonedSchedule dla działania w tle z większymi uprawnieniami
       await _notifications.zonedSchedule(
         1, // ID notyfikacji
         'Czas na Rhetorix! 🔥',
@@ -164,12 +184,12 @@ class NotificationService {
             'rhetorix_channel',
             'Rhetorix',
             channelDescription: 'Powiadomienia o zadaniach Rhetorix',
-            importance: Importance.high,
+            importance: Importance.max, // Zmienione z high na max
             priority: Priority.high,
             icon: '@mipmap/ic_launcher',
             enableVibration: true,
             playSound: true,
-            sound: null, // Użyj domyślnego dźwięku systemowego
+            sound: null,
             category: AndroidNotificationCategory.reminder,
             visibility: NotificationVisibility.public,
             channelShowBadge: true,
@@ -177,6 +197,13 @@ class NotificationService {
             when: 0,
             autoCancel: true,
             ongoing: false,
+            // Dodane dla lepszego działania w tle
+            fullScreenIntent: false, // Nie otwieraj aplikacji w pełnym ekranie
+            silent: false,
+            enableLights: true,
+            ledColor: const Color(0xFF4CAF50), // Kolor LED
+            ledOnMs: 1000, // LED włączony przez 1 sekundę
+            ledOffMs: 500, // LED wyłączony przez 0.5 sekundy
           ),
           iOS: DarwinNotificationDetails(
             presentAlert: true,
@@ -184,15 +211,25 @@ class NotificationService {
             presentSound: true,
           ),
         ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle, // Użyj dokładnego trybu
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
         payload: 'rhetorix_daily_reminder',
+        matchDateTimeComponents: DateTimeComponents.time, // Powtarzaj codziennie o tej samej godzinie
       );
       
-      print('DEBUG: Notyfikacja Rhetorix została zaplanowana pomyślnie (zonedSchedule)');
+      print('DEBUG: [scheduleDailyReminder] Notyfikacja Rhetorix została zaplanowana pomyślnie');
+      
+      // Sprawdź czy powiadomienie zostało rzeczywiście zaplanowane
+      final pending = await _notifications.pendingNotificationRequests();
+      print('DEBUG: [scheduleDailyReminder] Liczba zaplanowanych powiadomień: ${pending.length}');
+      for (final p in pending) {
+        print('DEBUG: [scheduleDailyReminder] Zaplanowane: ID=${p.id}, Title=${p.title}');
+      }
+      
     } catch (e) {
-      print('Error scheduling Rhetorix notification: $e');
+      print('DEBUG: [scheduleDailyReminder] BŁĄD podczas planowania: $e');
+      print('DEBUG: [scheduleDailyReminder] Stack trace: ${StackTrace.current}');
       rethrow;
     }
   }
@@ -264,6 +301,10 @@ class NotificationService {
             visibility: NotificationVisibility.public,
             autoCancel: true,
             ongoing: false,
+            enableLights: true,
+            ledColor: const Color(0xFF4CAF50),
+            ledOnMs: 1000,
+            ledOffMs: 500,
           ),
           iOS: DarwinNotificationDetails(
             presentAlert: true,
@@ -346,6 +387,10 @@ class NotificationService {
             visibility: NotificationVisibility.public,
             autoCancel: true,
             ongoing: false,
+            enableLights: true,
+            ledColor: const Color(0xFF4CAF50),
+            ledOnMs: 1000,
+            ledOffMs: 500,
           ),
           iOS: DarwinNotificationDetails(
             presentAlert: true,
@@ -676,6 +721,102 @@ class NotificationService {
       await openAppSettings();
     } catch (e) {
       print('Error opening app settings: $e');
+    }
+  }
+
+  // === FUNKCJE POMOCNICZE ===
+
+  // Sprawdź czy system używa formatu 24-godzinnego
+  static bool is24HourFormat() {
+    try {
+      final now = DateTime.now();
+      
+      // Użyj DateFormat.jm() który automatycznie dostosowuje się do ustawień systemowych
+      final timeString = DateFormat.jm().format(now);
+      
+      print('DEBUG: [is24HourFormat] System formatted time: $timeString');
+      
+      // Jeśli czas zawiera 'AM' lub 'PM', to jest format 12-godzinny
+      final is12Hour = timeString.contains('AM') || timeString.contains('PM');
+      final is24Hour = !is12Hour;
+      
+      print('DEBUG: [is24HourFormat] Detected format: ${is24Hour ? "24-hour" : "12-hour"}');
+      
+      return is24Hour;
+    } catch (e) {
+      print('DEBUG: [is24HourFormat] Error detecting time format: $e');
+      // Fallback - sprawdź czy godzina > 12
+      final now = DateTime.now();
+      final is24Hour = now.hour > 12 || now.hour == 0;
+      print('DEBUG: [is24HourFormat] Fallback detection: ${is24Hour ? "24-hour" : "12-hour"}');
+      return is24Hour;
+    }
+  }
+
+  // Sformatuj godzinę zgodnie z preferencjami systemu
+  static String formatTime(TimeOfDay time) {
+    try {
+      // Utwórz DateTime z wybraną godziną i minutą
+      final now = DateTime.now();
+      final dateTime = DateTime(now.year, now.month, now.day, time.hour, time.minute);
+      
+      // Użyj DateFormat.jm() który automatycznie dostosowuje się do ustawień systemowych
+      return DateFormat.jm().format(dateTime);
+    } catch (e) {
+      print('DEBUG: [formatTime] Error formatting time: $e');
+      // Fallback - ręczne formatowanie
+      if (is24HourFormat()) {
+        return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+      } else {
+        final hour = time.hour == 0 ? 12 : (time.hour > 12 ? time.hour - 12 : time.hour);
+        final period = time.hour >= 12 ? 'PM' : 'AM';
+        return '${hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')} $period';
+      }
+    }
+  }
+
+  // Pobierz listę godzin do wyboru w TimePicker
+  static List<TimeOfDay> getAvailableHours() {
+    final hours = <TimeOfDay>[];
+    
+    for (int hour = 0; hour < 24; hour++) {
+      hours.add(TimeOfDay(hour: hour, minute: 0));
+    }
+    
+    return hours;
+  }
+
+  // Sprawdź czy powiadomienia są rzeczywiście zaplanowane
+  static Future<bool> isNotificationScheduled() async {
+    try {
+      final pending = await _notifications.pendingNotificationRequests();
+      final rhetorixNotification = pending.where((p) => p.id == 1).isNotEmpty;
+      print('DEBUG: [isNotificationScheduled] Rhetorix notification scheduled: $rhetorixNotification');
+      print('DEBUG: [isNotificationScheduled] Total pending notifications: ${pending.length}');
+      return rhetorixNotification;
+    } catch (e) {
+      print('DEBUG: [isNotificationScheduled] Error checking scheduled notifications: $e');
+      return false;
+    }
+  }
+
+  // Debug: Pokaż wszystkie zaplanowane powiadomienia
+  static Future<void> debugShowScheduledNotifications() async {
+    try {
+      final pending = await _notifications.pendingNotificationRequests();
+      print('DEBUG: [debugShowScheduledNotifications] === ZAPLANOWANE POWIADOMIENIA ===');
+      print('DEBUG: [debugShowScheduledNotifications] Liczba: ${pending.length}');
+      
+      for (final p in pending) {
+        print('DEBUG: [debugShowScheduledNotifications] ID: ${p.id}');
+        print('DEBUG: [debugShowScheduledNotifications] Title: ${p.title}');
+        print('DEBUG: [debugShowScheduledNotifications] Body: ${p.body}');
+        print('DEBUG: [debugShowScheduledNotifications] ---');
+      }
+      
+      print('DEBUG: [debugShowScheduledNotifications] === KONIEC LISTY ===');
+    } catch (e) {
+      print('DEBUG: [debugShowScheduledNotifications] Error: $e');
     }
   }
 }

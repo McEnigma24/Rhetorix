@@ -9,7 +9,37 @@ void main() async {
   // Inicjalizacja notyfikacji
   await NotificationService.initialize();
   
+  // Sprawdź i zaplanuj powiadomienia przy starcie aplikacji
+  await _checkAndScheduleNotifications();
+  
   runApp(const RhetorixApp());
+}
+
+// Sprawdź i zaplanuj powiadomienia przy starcie aplikacji
+Future<void> _checkAndScheduleNotifications() async {
+  try {
+    print('DEBUG: [main] Sprawdzam ustawienia powiadomień...');
+    
+    final settings = await NotificationService.getNotificationSettings();
+    final enabled = settings['enabled'] ?? false;
+    final hour = settings['hour'] ?? 20;
+    final minute = settings['minute'] ?? 0;
+    
+    print('DEBUG: [main] Ustawienia powiadomień: enabled=$enabled, hour=$hour, minute=$minute');
+    
+    if (enabled) {
+      print('DEBUG: [main] Powiadomienia są włączone - planuję na $hour:$minute');
+      await NotificationService.scheduleDailyReminder(hour, minute);
+    } else {
+      print('DEBUG: [main] Powiadomienia są wyłączone');
+    }
+    
+    // Debug: Pokaż zaplanowane powiadomienia
+    await NotificationService.debugShowScheduledNotifications();
+    
+  } catch (e) {
+    print('DEBUG: [main] Błąd podczas sprawdzania powiadomień: $e');
+  }
 }
 
 class RhetorixApp extends StatelessWidget {
