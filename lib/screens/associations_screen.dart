@@ -28,7 +28,14 @@ class _AssociationsScreenState extends State<AssociationsScreen> {
   Timer? _wordTimer;
   
   // Stan ćwiczenia
-  String _currentPhase = 'ready'; // ready, running, finished
+  String _currentPhase = 'ready'; // ready, running, paused, finished
+  
+  // Lista wylosowanych słów w bieżącej sesji
+  Set<String> _usedWords = <String>{};
+  
+  // Czas wstrzymania (do obliczenia pozostałego czasu)
+  DateTime? _pauseTime;
+  int _pausedRemainingSeconds = 0;
 
   @override
   void initState() {
@@ -72,7 +79,27 @@ class _AssociationsScreenState extends State<AssociationsScreen> {
     });
 
     try {
-      final word = await WordService.getRandomWord();
+      // Pobierz wszystkie dostępne słowa
+      final allWords = await WordService.getAllWords();
+      
+      // Jeśli wszystkie słowa zostały już użyte, wyczyść listę i zacznij od nowa
+      if (_usedWords.length >= allWords.length) {
+        _usedWords.clear();
+      }
+      
+      // Znajdź słowo, które nie zostało jeszcze użyte
+      String word;
+      int attempts = 0;
+      const maxAttempts = 100; // Zabezpieczenie przed nieskończoną pętlą
+      
+      do {
+        word = await WordService.getRandomWord();
+        attempts++;
+      } while (_usedWords.contains(word) && attempts < maxAttempts);
+      
+      // Dodaj słowo do listy użytych
+      _usedWords.add(word);
+      
       setState(() {
         _currentWord = word;
       });
@@ -95,6 +122,8 @@ class _AssociationsScreenState extends State<AssociationsScreen> {
       _isRunning = true;
       _currentPhase = 'running';
       _totalRemainingSeconds = (_totalDuration * 60).round();
+      // Wyczyść listę użytych słów przy rozpoczęciu nowej sesji
+      _usedWords.clear();
     });
 
     // Timer główny - odlicza całkowity czas
@@ -119,13 +148,58 @@ class _AssociationsScreenState extends State<AssociationsScreen> {
     _generateWord();
   }
 
-  void _stopExercise() {
+  void _pauseExercise() {
+    _mainTimer?.cancel();
+    _wordTimer?.cancel();
+    setState(() {
+      _isRunning = false;
+      _currentPhase = 'paused';
+      _pauseTime = DateTime.now();
+      _pausedRemainingSeconds = _totalRemainingSeconds;
+    });
+  }
+
+  void _resumeExercise() {
+    if (_isRunning) return;
+    
+    setState(() {
+      _isRunning = true;
+      _currentPhase = 'running';
+      // Przywróć pozostały czas z momentu wstrzymania
+      _totalRemainingSeconds = _pausedRemainingSeconds;
+    });
+
+    // Timer główny - odlicza całkowity czas
+    _mainTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        _totalRemainingSeconds--;
+      });
+
+      if (_totalRemainingSeconds <= 0) {
+        _finishExercise();
+      }
+    });
+
+    // Timer słów - generuje nowe słowa według interwału
+    _wordTimer = Timer.periodic(Duration(milliseconds: _wordIntervalMs), (timer) {
+      if (_isRunning) {
+        _generateWord();
+      }
+    });
+  }
+
+  void _resetExercise() {
     _mainTimer?.cancel();
     _wordTimer?.cancel();
     setState(() {
       _isRunning = false;
       _currentPhase = 'ready';
       _totalRemainingSeconds = 0;
+      _currentWord = 'Naciśnij "Rozpocznij" aby rozpocząć';
+      // Wyczyść listę użytych słów przy resecie
+      _usedWords.clear();
+      _pauseTime = null;
+      _pausedRemainingSeconds = 0;
     });
   }
 
@@ -171,13 +245,6 @@ class _AssociationsScreenState extends State<AssociationsScreen> {
     }
   }
 
-  void _resetExercise() {
-    _stopExercise();
-    setState(() {
-      _currentPhase = 'ready';
-      _currentWord = 'Naciśnij "Rozpocznij" aby rozpocząć';
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -218,18 +285,22 @@ class _AssociationsScreenState extends State<AssociationsScreen> {
             const SizedBox(height: 20),
             
             // Timer główny
-            if (_isRunning || _currentPhase == 'finished') ...[
+            if (_isRunning || _currentPhase == 'finished' || _currentPhase == 'paused') ...[
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: _currentPhase == 'running' 
                     ? Colors.orange.withOpacity(0.1)
-                    : Colors.green.withOpacity(0.1),
+                    : _currentPhase == 'paused'
+                      ? Colors.blue.withOpacity(0.1)
+                      : Colors.green.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: _currentPhase == 'running' 
                       ? Colors.orange
-                      : Colors.green,
+                      : _currentPhase == 'paused'
+                        ? Colors.blue
+                        : Colors.green,
                   ),
                 ),
                 child: Column(
@@ -237,26 +308,32 @@ class _AssociationsScreenState extends State<AssociationsScreen> {
                     Text(
                       _currentPhase == 'running' 
                         ? 'Pozostały czas:'
-                        : 'Ćwiczenie zakończone!',
+                        : _currentPhase == 'paused'
+                          ? 'Wstrzymano:'
+                          : 'Ćwiczenie zakończone!',
                       style: TextStyle(
                         fontSize: 16, 
                         fontWeight: FontWeight.bold,
                         color: _currentPhase == 'running' 
                           ? Colors.orange
-                          : Colors.green,
+                          : _currentPhase == 'paused'
+                            ? Colors.blue
+                            : Colors.green,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      _currentPhase == 'running'
-                        ? '${_totalRemainingSeconds ~/ 60}:${(_totalRemainingSeconds % 60).toString().padLeft(2, '0')}'
-                        : '00:00',
+                      _currentPhase == 'finished'
+                        ? '00:00'
+                        : '${_totalRemainingSeconds ~/ 60}:${(_totalRemainingSeconds % 60).toString().padLeft(2, '0')}',
                       style: TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
                         color: _currentPhase == 'running' 
                           ? Colors.orange
-                          : Colors.green,
+                          : _currentPhase == 'paused'
+                            ? Colors.blue
+                            : Colors.green,
                       ),
                     ),
                   ],
@@ -282,22 +359,55 @@ class _AssociationsScreenState extends State<AssociationsScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     ),
                   )
-                else if (_currentPhase == 'running')
+                else if (_currentPhase == 'running') ...[
                   ElevatedButton.icon(
-                    onPressed: _stopExercise,
-                    icon: const Icon(Icons.stop),
-                    label: const Text('Zatrzymaj'),
+                    onPressed: _pauseExercise,
+                    icon: const Icon(Icons.pause),
+                    label: const Text('Wstrzymaj'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: _resetExercise,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Reset'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     ),
-                  )
-                else if (_currentPhase == 'finished')
+                  ),
+                ]
+                else if (_currentPhase == 'paused') ...[
+                  ElevatedButton.icon(
+                    onPressed: _resumeExercise,
+                    icon: const Icon(Icons.play_arrow),
+                    label: const Text('Wznów'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    ),
+                  ),
                   ElevatedButton.icon(
                     onPressed: _resetExercise,
                     icon: const Icon(Icons.refresh),
                     label: const Text('Reset'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    ),
+                  ),
+                ]
+                else if (_currentPhase == 'finished')
+                  ElevatedButton.icon(
+                    onPressed: _resetExercise,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Rozpocznij nowe'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue,
                       foregroundColor: Colors.white,
@@ -310,7 +420,7 @@ class _AssociationsScreenState extends State<AssociationsScreen> {
             const SizedBox(height: 20),
             
             // Ustawienia
-            if (_currentPhase == 'ready') ...[
+            if (_currentPhase == 'ready' || _currentPhase == 'paused') ...[
               // Ustawienia czasu ćwiczenia
               const Text('Czas ćwiczenia (minuty):'),
               const SizedBox(height: 8),
@@ -321,6 +431,10 @@ class _AssociationsScreenState extends State<AssociationsScreen> {
                     onPressed: _totalDuration > 0.5 ? () {
                       setState(() {
                         _totalDuration -= 0.5;
+                        // Jeśli jesteśmy w trakcie wstrzymania, zaktualizuj pozostały czas
+                        if (_currentPhase == 'paused') {
+                          _pausedRemainingSeconds = (_totalDuration * 60).round();
+                        }
                       });
                       _saveSettings();
                     } : null,
@@ -334,6 +448,10 @@ class _AssociationsScreenState extends State<AssociationsScreen> {
                     onPressed: _totalDuration < 30 ? () {
                       setState(() {
                         _totalDuration += 0.5;
+                        // Jeśli jesteśmy w trakcie wstrzymania, zaktualizuj pozostały czas
+                        if (_currentPhase == 'paused') {
+                          _pausedRemainingSeconds = (_totalDuration * 60).round();
+                        }
                       });
                       _saveSettings();
                     } : null,
