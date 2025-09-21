@@ -13,7 +13,14 @@
     <application
         android:label="Rhetorix"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="true"
+        android:largeHeap="true"
+        android:hardwareAccelerated="true"
+        android:usesCleartextTraffic="true"
+        android:requestLegacyExternalStorage="true"
+        android:persistent="true"
+        android:allowClearUserData="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"

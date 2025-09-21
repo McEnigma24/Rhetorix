@@ -523,8 +523,16 @@ class NotificationService {
   // Poproś o uprawnienia do dokładnych alarmów
   static Future<bool> requestExactAlarmPermission() async {
     try {
-      final status = await Permission.scheduleExactAlarm.request();
-      return status.isGranted;
+      if (Platform.isAndroid) {
+        // Najpierw spróbuj przez MethodChannel
+        await openExactAlarmSettingsViaMethodChannel();
+        
+        // Sprawdź czy uprawnienie zostało przyznane
+        final status = await Permission.scheduleExactAlarm.request();
+        print('DEBUG: [requestExactAlarmPermission] Permission result: $status');
+        return status.isGranted;
+      }
+      return true;
     } catch (e) {
       print('Error requesting exact alarm permissions: $e');
       return false;
@@ -545,8 +553,16 @@ class NotificationService {
   // Poproś o uprawnienia do ignorowania optymalizacji baterii
   static Future<bool> requestIgnoreBatteryOptimization() async {
     try {
-      final status = await Permission.ignoreBatteryOptimizations.request();
-      return status.isGranted;
+      if (Platform.isAndroid) {
+        // Najpierw spróbuj przez MethodChannel
+        await requestBatteryOptimizationViaMethodChannel();
+        
+        // Sprawdź czy uprawnienie zostało przyznane
+        final status = await Permission.ignoreBatteryOptimizations.request();
+        print('DEBUG: [requestIgnoreBatteryOptimization] Permission result: $status');
+        return status.isGranted;
+      }
+      return true;
     } catch (e) {
       print('Error requesting battery optimization permission: $e');
       return false;
@@ -721,6 +737,38 @@ class NotificationService {
       await openAppSettings();
     } catch (e) {
       print('Error opening app settings: $e');
+    }
+  }
+
+  // NOWA METODA: Poproś o uprawnienia do ignorowania optymalizacji baterii przez MethodChannel
+  static Future<void> requestBatteryOptimizationViaMethodChannel() async {
+    try {
+      const platform = MethodChannel('com.example.rhetorix/permissions');
+      await platform.invokeMethod('requestIgnoreBatteryOptimization');
+    } catch (e) {
+      print('Error requesting battery optimization via method channel: $e');
+      // Fallback do standardowej metody
+      await requestIgnoreBatteryOptimization();
+    }
+  }
+
+  // NOWA METODA: Otwórz ustawienia dokładnych alarmów przez MethodChannel
+  static Future<void> openExactAlarmSettingsViaMethodChannel() async {
+    try {
+      const platform = MethodChannel('com.example.rhetorix/permissions');
+      await platform.invokeMethod('openExactAlarmSettings');
+    } catch (e) {
+      print('Error opening exact alarm settings via method channel: $e');
+    }
+  }
+
+  // NOWA METODA: Otwórz ustawienia notyfikacji przez MethodChannel
+  static Future<void> openNotificationSettingsViaMethodChannel() async {
+    try {
+      const platform = MethodChannel('com.example.rhetorix/permissions');
+      await platform.invokeMethod('openNotificationSettings');
+    } catch (e) {
+      print('Error opening notification settings via method channel: $e');
     }
   }
 
