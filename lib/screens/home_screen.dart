@@ -163,20 +163,45 @@ class _HomeScreenState extends State<HomeScreen> {
                     border: Border.all(color: Colors.orange.withOpacity(0.3)),
                   ),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Icon(
-                        Icons.local_fire_department,
-                        color: Colors.orange,
-                        size: 20,
+                      // Lewa strona - streak
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.local_fire_department,
+                            color: Colors.orange,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Streak: $_currentStreak dni',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Streak: $_currentStreak dni',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange,
+                      // Prawa strona - ikona ustawień
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.pushNamed(context, '/settings');
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.teal.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.teal.withOpacity(0.3)),
+                          ),
+                          child: const Icon(
+                            Icons.settings,
+                            color: Colors.teal,
+                            size: 20,
+                          ),
                         ),
                       ),
                     ],

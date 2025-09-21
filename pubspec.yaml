@@ -41,6 +41,13 @@ dependencies:
   # Shared Preferences for storing daily tasks
   shared_preferences: ^2.2.2
 
+  # Local notifications
+  flutter_local_notifications: ^17.2.2
+  timezone: ^0.9.2
+
+  # Permissions
+  permission_handler: ^11.3.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
